@@ -20,14 +20,14 @@ theme = "hello-friend-ng"
 
 [languages]
   [languages.en]
-    title = "Chetan's Tech Blog"
-    subtitle = "A Tech Blog by Chetan Bhasin"
+    title = "Blog Posts"
+    subtitle = ""
     #keywords = ""
     copyright = "Chetan Bhasin"
     readOtherPosts = "Read other posts"
 
     [languages.en.params.logo]
-      logoText = "Chetan's Tech Blog"
+      logoText = "cbopt blog"
       logoHomeLink = "/"
     # or
     #
