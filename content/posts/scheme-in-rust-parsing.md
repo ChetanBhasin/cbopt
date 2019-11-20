@@ -37,7 +37,7 @@ Some of the items in the above Enum are pretty obvious. `Number`, `String`, and 
 
 `Atom` holds any atomic name or symbol that is defined by the user in their program. For example, name of a function will be an atom. It's called atom because that's the smallest level of that symbol and cannot be broken down any further.
 
-A `DottedList` is not that obvious if you're not already familiary with Lisp. The dotted-notation allows you to define your list as pairs using tuples. This is similar to the "cons" notation in languages like Haskell and Scala. We will not address the details of this notation here, but you can learn more about it in [this article](https://www.gnu.org/software/emacs/manual/html_node/elisp/Dotted-Pair-Notation.html).
+A `DottedList` is not that obvious if you're not already familiar with Lisp. The dotted-notation allows you to define your list as pairs using tuples. This is similar to the "cons" notation in languages like Haskell and Scala. We will not address the details of this notation here, but you can learn more about it in [this article](https://www.gnu.org/software/emacs/manual/html_node/elisp/Dotted-Pair-Notation.html).
 
 ## Writing A Parser
 
@@ -81,9 +81,9 @@ named!(
 );
 ```
 
-We used the `named!` macro from Nom here. This will create a function called `parse_number` that will parse our input to a Lisp String. The parser will take `&str` as an input, and product `LispVal` as the output.
+We used the `named!` macro from Nom here. This will create a function called `parse_string` that will parse our input to a Lisp String. The parser will take `&str` as an input, and produce `LispVal` as the output.
 
-The next thing we do here is to use the `do_parse!` macro. This will let us define our larger parser as a chain of parse operations where inputs can be used from one parser to another. Inside this, we are already using a bunch of other parser. `char!` parses a single character, `none_of!` parses any character that is not one of the mentioned characters, and `many0!` parses zero or more occurances of content that the inner parser (`none_of!` here) can parse. 
+The next thing we do here is to use the `do_parse!` macro. This will let us define our larger parser as a chain of parse operations where inputs can be used from one parser to another. Inside this, we are already using a bunch of other parsers. `char!` parses a single character, `none_of!` parses any character that is not one of the mentioned characters, and `many0!` parses zero or more occurrences of content that the inner parser (`none_of!` here) can parse. 
 
 Since a string will be anything wrapped in quotes, we want to parse the beginning of a quote, a sequence of characters that are not a quote, and an ending code. That is exactly what our parser does. Note how the `>>` here tells Nom to execute one parser after another.
 
@@ -97,20 +97,20 @@ fn string_parser_test() {
     let output = parse_string("\"hello\"").unwrap();
     assert_eq!(
         output,
-        ("", LispVal::String(String::from_iter("hello".chars())))
+        ("", LispVal::String("hello".to_owned())
     );
 }
 ```
 
-You might have noticed that we our strings are only reprsented by characters wrapped in quotes. However, what happens when the string itself contains quotes? Usually, we would have something like `\` that could be used for escaping reserved characters. In our parser we haven't done that. Let's get back to it later.
+You might have noticed that strings in our example are only reprsented by characters wrapped in quotes. However, what happens when the string itself contains quotes? Usually, we would have something like `\` that could be used for escaping reserved characters. In our parser we haven't done that. Let's get back to it later.
 
 You can work on it as an exercise right away if you like. Here is the code that you can add to your test to validate character escaping.
 
 ```rust
-let output2 = parse_string("\"\\\"hello\\\"").unwrap();
+let output2 = parse_string(r#""\"hello\""#).unwrap();
 assert_eq!(
     output2,
-    ("", LispVal::String(String::from_iter("\"hello\"".chars())))
+    ("", LispVal::String("\"hello\"".to_owned())
 );
 ```
 
@@ -134,13 +134,9 @@ fn number_parser_test() {
 
 Our macro calls look similar to the ones that we used for parsing a string. I would like to point out, however, that we can probably define a number parser without using the `do_parse` macro, but it was much easier to store the result of `many1!` in a value that we can read and parse directly in Rust.
 
-You might have also noticed that we introduced two new parsers — `many1` and `digit1` from Nom. `digit1` matches a one or more digit, and `many1` matches one or more occurances of inner parser.
-
-
+You might have also noticed that we introduced two new parsers — `many1` and `digit1` from Nom. `digit1` matches a one or more digit, and `many1` matches one or more occurrences of inner parser.
 
 Let's try to parse our `Atom` values now. Here is another parser written using Nom macros.
-
-
 
 ```rust
 fn match_symbols(input: String) -> LispVal {
@@ -163,7 +159,7 @@ named!(parse_atom<&str, LispVal>, do_parse!(
 fn atom_parser_test() {
     assert_eq!(
         parse_atom("$foo").unwrap(),
-        ("", LispVal::Atom(String::from_iter("$foo".chars())))
+        ("", LispVal::Atom("$foo".to_owned()))
     );
     assert_eq!(parse_atom("#f").unwrap(), ("", LispVal::Boolean(false)));
 }
@@ -171,7 +167,7 @@ fn atom_parser_test() {
 
 This parser is slightly different in the sense that we match the output of the parser and if the output is `#t` or `#f` we map them to boolean values true and false respectively. If it's none of those, we map them to an atomic value in our Lisp code.
 
-We have also introduced the `alt!` macro now which lets you select one of the multiple specified parsers, and use the one that matches. Rest of the macro code seems vairly intuitive.
+We have also introduced the `alt!` macro now which lets you select one of the multiple specified parsers, and use the one that matches. Rest of the macro code seems fairly intuitive.
 
 Now that we have atoms, lets try something slightly more complicated. Now we can start parsing lists and dotted lists.
 
@@ -214,8 +210,6 @@ We are now also parsing things that begin with a quote. In Lisp, these items are
 
 Note that we also parse dotted lists now. We have the `parse_dotted_list` function defined using macros that uses `dotted` function that is also defined using macros. Our dotted function detects the dotted syntax, and the `parse_dotted_list` function parses the actual list. I felt that this was the most intuitive way of defining a parser for dotted list instead of trying to build the entire parse logic inside of the `do_parse`body.
 
-
-
 You might have noticed that we used `parse_expr` while parsing items for our list. Where does this come from? We are now reaching a point where our parsers are becoming recursive. Since a list is basically a sequence of Lisp expressions, and the list itself is an expression, we need a way to write a recursive parser.
 
 We have not yet defined the `parse_expr` function yet, so let's define it.
@@ -231,7 +225,7 @@ Let's have a few more tests and we are good to go.
     fn atom_parser_test() {
         assert_eq!(
             parse_atom("$foo").unwrap(),
-            ("", LispVal::Atom(String::from_iter("$foo".chars())))
+            ("", LispVal::Atom("$foo".to_owned())
         );
         assert_eq!(parse_atom("#f").unwrap(), ("", LispVal::Boolean(false)));
     }
@@ -277,8 +271,6 @@ Let's have a few more tests and we are good to go.
 
 Now, this is looking more and more like a useful parser. While this is neither the perfect parser, nor does it satisfy all of supported scheme syntax, it is a very good starting point.
 
-
-
 Our parser can now be exported as a public function.
 
 ```rust
@@ -290,5 +282,3 @@ pub fn parse_lisp_expr(input: &str) -> Result<(&str, LispVal), AppErr> {
 ```
 
 We have not addressed several things such as escape characters in strings. Scheme also has vectors that are similar to vectors in Rust — we have not covered them in our parser.
-
-
